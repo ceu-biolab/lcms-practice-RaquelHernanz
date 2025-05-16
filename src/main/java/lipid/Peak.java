@@ -1,6 +1,6 @@
 package lipid;
 
-public class Peak {
+public class Peak implements Comparable<Peak> {
 
     private final double mz;
     private final double intensity;
@@ -34,5 +34,11 @@ public class Peak {
         if (!(obj instanceof Peak)) return false;
         Peak other = (Peak) obj;
         return Double.compare(mz, other.mz) == 0;
+    }
+
+    //Required if we use TreeSet. Since each adduct has a unique m/z ratio
+    @Override
+    public int compareTo(Peak o) {
+        return -Double.compare(o.mz, this.getMz());
     }
 }

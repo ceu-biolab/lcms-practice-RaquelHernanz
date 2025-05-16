@@ -1,9 +1,9 @@
 package lipid;
 
-import java.util.Collections;
-import java.util.Objects;
-import java.util.Set;
-import java.util.TreeSet;
+import adduct.AdductList;
+import adduct.MassTransformation;
+
+import java.util.*;
 
 /**
  * Class to represent the annotation over a lipid
@@ -128,5 +128,62 @@ public class Annotation {
                 lipid.getName(), mz, rtMin, adduct, intensity, score);
     }
 
-    // !!TODO Detect the adduct with an algorithm or with drools, up to the user.
+    // DONE > !!TODO Detect the adduct with an algorithm or with drools, up to the user.
+
+    /** The method compares the monoisotopic masses of the posibles adducts, and then selects
+     * between the possibles ones which correspond to the peak indicated in the annotation
+     * @param tolerance tolerance for the difference between monoisotopic masses
+     */
+
+    public void detectAdductByPairComparison(double tolerance) {
+        Map<String, Double> adductMap;
+        System.out.println(this.mz);
+        if (ionizationMode == IoniationMode.POSITIVE) {
+            adductMap = AdductList.MAPMZPOSITIVEADDUCTS;
+        } else {
+            adductMap = AdductList.MAPMZNEGATIVEADDUCTS;
+        }
+
+        List<Peak> peaks = new ArrayList<>(groupedSignals);
+        double bestDiff = Double.MAX_VALUE;
+        String bestAdduct = "Unknown";
+        System.out.println("Ordered peaks (mz values): ");
+        for (Peak peak : groupedSignals) {
+            System.out.println(peak.getMz());
+        }
+
+        // we compare all peaks between them
+        for (int i = 0; i < peaks.size(); i++) {
+            for (int j = i + 1; j < peaks.size(); j++) {
+                Peak p1 = peaks.get(i);
+                Peak p2 = peaks.get(j);
+
+                // We try all possible combinations of adducts in a pair of peaks
+                for (String ad1 : adductMap.keySet()) {
+                    double m1 = MassTransformation.getMonoisotopicMassFromMZ(p1.getMz(), ad1,this.getIonizationMode());
+                    for (String ad2 : adductMap.keySet()) {
+                        if (ad1.equals(ad2)) continue;
+                        double m2 = MassTransformation.getMonoisotopicMassFromMZ(p2.getMz(), ad2, this.getIonizationMode());
+                        double diff = Math.abs(m1 - m2);
+                        /*System.out.println(ad1 + " - " + ad2 + " = Difference is " + diff);*/
+                        if (diff < bestDiff && diff <= tolerance) {
+                            // We select the adduct that corresponds with this.mz
+                            // you cant apply the if with (Math.abs(p1.getMz() - this.mz) because the peak p1 is always going to be associated with the initial adducts of the Map
+                            if (Math.abs(p1.getMz() - this.mz) < 1e-6) {
+                                setAdduct(ad1);
+                                return;
+                            } else if (Math.abs(p2.getMz() - this.mz) < 1e-6) {
+                                setAdduct(ad2);
+                                return;
+                            }else {
+                                //neigther of both is exactly this.mz;
+                                this.adduct= "Unknown";
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
